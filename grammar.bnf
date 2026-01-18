@@ -1,19 +1,6 @@
 (* =========================================================
-	Sophia (AI₂O³) - BNF Grammar Definition v1.6.6
-	"The Determinism Update"
-	
-	Philosophy:
-		- Auto-Iteration: Universal iteration source support
-		- O(N) Enforcement: Nested loops forbidden
-		- Zero-Offset-Error: Range-based indexing
-		- Physicality: Array, I/O Gate, and Lens models
-		- Determinism: Side-effect-free expression via Pure Functions
-	
-	Update History:
-		v1.6.1: Universal IterSource (LValue + Literal + Range)
-		v1.6.4: I/O Gate Model ([?],[_],[<],[>]), Try-Flow (?!), Exit Controls
-		v1.6.5: Lens Selectors (]>[ |>[ [>[), Namespace SysCalls ($[sys...])
-		v1.6.6: Pure Functions (!) and Task (&) separation for guaranteed determinism.
+	Sophia (AI₂O₃) - BNF Grammar Definition v1.7.1
+	"Integrated Physicality" - Full Unified Version
 	========================================================= *)
 
 (* =========================================================
@@ -22,153 +9,134 @@
 
 <Program>		::= <Definition>*
 
-<Definition>	::= <SchemaDef> 
-				| <TaskDef>      (* 副作用あり: & *)
-				| <PureDef>      (* 副作用なし: ! *)
-				| <SceneDef> 
-				| <ConstDef>
+<Definition>	::= <SchemaDef>   (* データ構造：# *)
+				| <ConstDef>    (* 定数定義：% *)
+				| <TaskDef>     (* 副作用あり関数：& *)
+				| <PureDef>     (* 純粋関数：! *)
+				| <SceneDef>    (* 物理スコープ：scene *)
 
 (* =========================================================
-	SCHEMA DEFINITION (テーブル構造定義)
+	SCENE & LENS MODEL (2文字レンズ + ブロック)
 	========================================================= *)
 
-<SchemaDef>		::= "#" <Ident> <FieldsBlock> <CapacityBlock>?
+<SceneDef>		::= "scene" <Ident> <Lens> <BodyBlock>
 
-<FieldsBlock>	::= "[" <TypedFields> "]"
-<TypedFields>	::= <FieldDef> ( "," <FieldDef> )*
-<FieldDef>		::= <Ident> ":" <Type>
-
-<Type>			::= "i8" | "i16" | "i32" | "u8" | "u16" | "u32" 
-				| "f32" | "f64" | "str" | "bool"
-
-<CapacityBlock>	::= "[" ( <Int> | <Ident> ) "]"
-
-(* =========================================================
-	CONSTANT DEFINITION (ハッシュマップ型定数)
-	========================================================= *)
-
-<ConstDef>		::= "%" <Ident> "[" <HashList> "]"
-<HashList>		::= <HashPair> ( "," <HashPair> )*
-<HashPair>		::= <Ident> ( ":" <Expression> )?
-
-(* =========================================================
-	SCENE DEFINITION (物理レンズモデル)
-	========================================================= *)
-
-<SceneDef>		::= "scene" <Ident> <LensSelector> "[" <EventDef>* "]"
-
-<LensSelector>	::= "]>["  (* Wide Lens: Global/Base Layer   *)
-				| "|>["  (* Normal Lens: Active/Main Layer *)
-				| "[>["  (* Tele Lens: Overlay/Sub Layer   *)
-
+(* レンズ：物理的な透過特性。直後にブロック構造 [] が続く *)
+<Lens>			::= "]>"  (* Wide Lens: 基底レイヤー / 全域透過 *)
+				| "|>"  (* Normal Lens: メインレイヤー / 標準集光 *)
+				| "[>"  (* Tele Lens: サブレイヤー / 拡大・透過 *)
+(*== EventDef allow only in BobyBlock of SceneDef  ==*)
 <EventDef>		::= "on" <Ident> <ArgParamList>? <BodyBlock>
-
 <ArgParamList>	::= "[" ( "." <Ident> ( "," "." <Ident> )* )? "]"
 
 (* =========================================================
-	TASK & PURE FUNCTION DEFINITION (タスクと純粋関数)
+	DATA & CONSTANT DEFINITIONS
 	========================================================= *)
 
-<TaskDef>		::= "&" <Ident> "[" <ParamList>? "]" <BodyBlock>
-<PureDef>		::= "!" <Ident> "[" <ParamList>? "]" <BodyBlock>
-<ParamList>		::= <Ident> ( "," <Ident> )*
+<SchemaDef>		::= "#" <Ident> "[" <FieldDef>* "]" <Capacity>?
+<FieldDef>		::= <Ident> ":" <Type>
+<Type>			::= "i8" | "i16" | "i32" | "u8" | "u16" | "u32" 
+				| "f32" | "f64" | "str" | "bool" | "bit"
+				| <Ident> | <Type> "*" <Int>
+<Capacity>		::= "[" <Int> "]"
+
+<ConstDef>		::= "%" <Ident> "[" <HashList> "]"
+<HashList>		::= <HashPair> ( "," <HashPair> )*
+<HashPair>		::= <Ident> ( "::" <Expression> )?
 
 (* =========================================================
-	STATEMENTS & FLOW CONTROL (実行文と制御)
-	========================================================= *)
-
-<BodyBlock>		::= "[" <Statement>* <ExitControl>? "]"
-
-<Statement>		::= <IterateBlock>
-				| <CollectionBlock>
-				| <ListBlock>
-				| <QAChain>
-				| <Action>
-				| <SapphireCall>
-				| <TaskCall>
-				| <ExitControl>
-
-(* --- QA CHAIN & TRY-FLOW --- *)
-<QAChain>		::= <QPrefix> <BodyBlock> ( <ElseIfBlock> | <ElseBlock> )?
-
-<QPrefix>		::= "?" "[" <Expression> "]"         (* If: 条件評価 *)
-				| "?!"                               (* Try: 実行成否評価 *)
-
-<ElseIfBlock>	::= "|?" <QAChain>
-<ElseBlock>		::= "|!" ( "[" <Ident> "]" )? <BodyBlock> (* Catch/Else *)
-
-(* --- SAPPHIRE CALL & I/O GATES (Namespaces) --- *)
-<SapphireCall>	::= "$" "[" <Namespace> "." <Ident> <ArgList>? "]" <IOGate>?
-
-<Namespace>		::= "scene" | "event" | "audio" | "net" | "ui" | "sys" | "math" | "file"
-
-<IOGate>		::= "[" <IOParts> "]"
-<IOParts>		::= <IOPart> ( "," <IOPart> )*
-<IOPart>		::= "?" <Expression>                 (* 条件フィルタ (Status等) *)
-				| "_" <Expression>                 (* 待機時間 (Timeout) *)
-				| "<"                              (* Read (受信/同期化) *)
-				| ">" <Expression>?                (* Write (送信/イベント発火) *)
-				| "x"                              (* Abort (切断) *)
-
-(* --- EXIT CONTROL (End-Cap & Out-Gate) --- *)
-<ExitControl>	::= <EndCap> | <OutGate>
-
-<EndCap>		::= "^" <Int>?                       (* Continue/Retry (limit) *)
-				| "v"                                (* Pass/Next *)
-				| "x"                                (* Break/Terminate *)
-
-<OutGate>		::= ">" <Expression>?                (* Return/Output/Signal *)
-
-(* =========================================================
-	ITERATION & COLLECTION
-	========================================================= *)
-
-<IterateBlock>	::= <IterSource> "*" <BodyBlock>
-
-<IterSource>	::= <LValue>                         (* Array, Table, Variable *)
-				| <ListBlock>                        (* Array slice: arr@[0:10] *)
-				| <Int>                              (* N-times loop *)
-				| <Range>                            (* Range: start:end *)
-				| "(" <Expression> ")"               (* Expression result *)
-
-<Range>			::= <Expression> ":" <Expression>
-
-<CollectionBlock> ::= <Ident> "#" <Subject> <BodyBlock>?
-<Subject>		::= <Int> | <Ident> | "*"
-
-<ListBlock>		::= <Ident> "@" "[" <Range>? <GateOp> <Expression>? "]"
-<GateOp>		::= "<" | ">" | "x" | "^" | "v" | "size"
-
-(* =========================================================
-	LVALUE & CALLS
+	LVALUE & NATURE (物理参照パス)
 	========================================================= *)
 
 <LValue>		::= <Nature> <Ident> <SubAccess>*
-<SubAccess>		::= "::" <Ident>                     (* Property access *)
-				| "%" <Ident>                        (* Hash key access *)
-				| "#" <Expression>                   (* Table index access *)
 
-<Nature>		::= "#" | "%" | "@" | "$" | "&" | "." | "~"
+<Nature>		::= "." (* Constant / Argument: 定数および引数 (不変) *)
+				| "%" (* Hash: ハッシュマップ / 名前付き定数群 *)
+				| "~" (* Mutable: 可変変数 (Scope内) *)
+				| "#" (* Table: 構造化データ実体 (TypedArray) *)
+				| "@" (* Array: 物理配列 / システム状態 *)
+				| "$" (* Sapphire: 外部I/Oゲート/システムコール *)
 
-<DirectAccess>	::= <Accessor> <Ident>
-<Accessor>		::= "::" | "%" | "#"
+<SubAccess>		::= "@" <Expression> 
+				| "#" <Expression> 
+				| "%" <Ident>
+
+(* =========================================================
+	FUNCTION & EXECUTION UNITS
+	========================================================= *)
+
+<TaskDef>		::= "&" <Ident> <ParamList>? <BodyBlock>
+<PureDef>		::= "!" <Ident> <ParamList>? <BodyBlock>
+<ParamList>		::= "[" ( <Ident> ( "," <Ident> )* )? "]"
+
+<BodyBlock> ::= <BlockPrefix>? "[" <Statement>* <ExitControl>? "]"
+<BlockPrefix> ::= "!" | "&"
+
+
+<Statement>		::= <IterateBlock>
+				| <QAChain>
+				| <Action>
+				| <PureCall>
+				| <TaskCall>
+				| <SapphireCall>
+				| <EventDef> (* Only in Scene BodyBlock *)
+				| <ExitControl>
+
+(* =========================================================
+	FLOW CONTROL (QA, TRY, EXIT)
+	========================================================= *)
+
+<QAChain>		::= <QPrefix> <BodyBlock> ( <ElseIfBlock> | <ElseBlock> )?
+
+<QPrefix>		::= "?" "[" <Expression> "]"         (* If: 条件 *)
+				| "?!"                               (* Try: 成否 *)
+
+<ElseIfBlock>	::= "|?" <QAChain>
+<ElseBlock>		::= "|!" ( "[" <Ident> "]" )? <BodyBlock> (* Catch *)
+
+(*== ExitCotrol in only end of BodyBlock ==*)
+<ExitControl>	::= "^" <Int>?                       (* defer only Hash *)
+				| "v"                                (* Continue *)
+				| "x"                                (* Break / Terminate *)
+				| ">" <Expression>?                (* Return / Output *)
+
+(* =========================================================
+	ITERATION
+	========================================================= *)
+
+<IterateBlock>	::= <IterSource> "*" <BodyBlock>
+<IterSource>	::= <LValue> | <Int> | <Range> | "[" <Expression> "]"
+
+<Range>			::= <Expression> ".." <Expression>
+
+(* =========================================================
+	ACTIONS & OPERATIONS (物理演算)
+	========================================================= *)
+
+<Action>		::= <LValue> "[" <GeoOp> <Expression>? "]"
+ 
+(*== GeoOp only in Action ==*)
+<GeoOp>			::= "<" (* 流し込み (代入) *)
+				| "+" | "-" | "*" | "/" | "%" (算術演算)
+				| "x" (* 削除  *)
+				| "^" | "v" | "_" (* ソート / 待機 *)
 
 <TaskCall>		::= <Ident> "&" "[" <ArgList>? "]"
 <PureCall>		::= <Ident> "!" "[" <ArgList>? "]"
 <ArgList>		::= <Expression> ( "," <Expression> )*
 
+<SapphireCall> ::= <SapphirePrefix> "[" <Namespace> "." <Ident> <ArgList>? "]" <IOGate>?
+<SapphirePrefix>	::=  "$" | "!$"
+<Namespace>		::= "sys" | "math" | "io" | "net" | "ui" | "file" | "scene" | "audio" | "event"
+<IOGate>		::= "[" <IOParts> "]"
+<IOParts>		::= <IOPart> ( "," <IOPart> )*
+<IOPart> ::= "in[" <Expression> "]" 
+           | "out[" <Expression> "]" 
+           | "delay[" <Expression> "]" 
+           | "halt"
+
 (* =========================================================
-	ACTIONS & OPERATIONS (演算・代入)
-	========================================================= *)
-
-<Action>		::= <LValue> "[" <GeoOp> <Expression>? "]"
-				| <DirectAccess> "[" <GeoOp> <Expression>? "]"
-
-<GeoOp>			::= "<" | ">" | "x" | "+" | "-" | "*" | "/" | "%" 
-				| "^" | "v" | "_"
-
-(* =========================================================
-	EXPRESSIONS & LITERALS (式とリテラル)
+	EXPRESSIONS & LITERALS
 	========================================================= *)
 
 <Expression>	::= <LogicalOR>
@@ -180,17 +148,17 @@
 
 <MathExpr>		::= <Term> ( ( "+" | "-" ) <Term> )*
 <Term>			::= <Factor> ( ( "*" | "/" | "%" ) <Factor> )*
+
 <Factor>		::= <Unary> | <Primary>
 <Unary>			::= ( "!" | "-" ) <Primary>
 
 <Primary>		::= <Literal> 
 				| <LValue> 
-				| <DirectAccess> 
-				| <PureCall>      (* Expression内では ! のみを許可 *)
+				| <PureCall>      (* 副作用禁止 *)
 				| <SapphireCall> 
-				| "(" <Expression> ")"
+				| "[" <Expression> "]"
 
-<Literal>		::= <Int> | <Float> | <String> | <Bool>
+<Literal>		::= <Int> | <Float> | <String> | <Bool> | "null"
 <Int>			::= [0-9]+
 <Float>			::= [0-9]+ "." [0-9]+
 <String>		::= "\"" [^"]* "\""
